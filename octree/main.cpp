@@ -3,9 +3,8 @@
 
 using namespace std;
 
-template<typename T>
 struct Onode{
-    T x,y,z;
+    double x,y,z;
     int generation;
     vector<Onode*> childs;
     Onode();

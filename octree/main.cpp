@@ -2,8 +2,9 @@
 #include <vector>
 #include <cmath>
 #include <queue>
+#include <cstdlib>
 
-using namespace std;
+//using namespace std;
 
 enum Status{UNUSED,BODY,LEAVES};
 
@@ -11,7 +12,7 @@ struct Onode{
     double x,y,z;
     int generation;
     Status s;
-    vector<Onode*> childs;
+    std::vector<Onode*> childs;
     Onode();
     Onode(double xx,double yy,double zz,int g);
     int sz()const{return childs.size();}
@@ -73,7 +74,17 @@ void Octree::Expand(Onode* node_ptr,Status ss){ //assert:ss!=UNUSED
     double z_step=(z_max-z_min)/4/pow(2,node_ptr->generation);
 
     for(int i=0;i<8;i++){
-        node_ptr->childs[i]=onodes+sz;
+        switch(ss){
+            case(BODY):{
+                node_ptr->childs[i]=onodes+sz;
+                break;
+            }
+            case(LEAVES):{
+                node_ptr->childs[i]=new Onode;
+                break;
+            }
+            default:exit(-1);
+        }
         sz++;
         double xx=node_ptr->x+x_sign[i]*x_step;
         double yy=node_ptr->y+y_sign[i]*y_step;
@@ -98,7 +109,7 @@ Octree::Octree(int g){      //number of generation.g=0 means only 1 node(root), 
     onodes=new Onode[target_sz];    //create all objects at one time
     sz=1;
     onodes->SetNode((x_min+x_max)/2,(y_min+y_max)/2,(z_min+z_max)/2,0,BODY);
-    queue<Onode*> q_node;
+    std::queue<Onode*> q_node;
     q_node.push(onodes);
     while(!q_node.empty()){
         Onode* node_ptr=q_node.front();q_node.pop();
@@ -125,10 +136,10 @@ void Octree::TravPost(Onode* node_ptr, UP updater){
 void Octree::Print(){
     struct PrintNode{
         void operator()(Onode *node_ptr)const{
-            cout<<"generation: "<<node_ptr->generation
+            std::cout<<"generation: "<<node_ptr->generation
             <<" coordinates:"<<node_ptr->x
             <<" "<<node_ptr->y
-            <<" "<<node_ptr->z<<endl;
+            <<" "<<node_ptr->z<<std::endl;
         }
     }updater;
     TravPost(onodes,updater);
@@ -141,6 +152,5 @@ int main()
 //    test.Print();
  //   Octree<double>::Expand exp;
 //    test.TravPost(test.GetRoot(),exp);
-    cout << "Hello world!" << endl;
     return 0;
 }

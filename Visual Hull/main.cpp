@@ -11,6 +11,7 @@
 #include <Eigen/Eigen>
 #include <limits>
 #include <list>
+#include <unordered_set>
 #include "octree.h"
 
 // 用于判断投影是否在visual hull内部
@@ -37,48 +38,24 @@ struct Projection
 	}
 };
 
-// 用于index和实际坐标之间的转换
-struct CoordinateInfo
-{
-	int m_resolution;
-	double m_min;
-	double m_max;
-
-	double index2coor(int index)
-	{
-		return m_min + index * (m_max - m_min) / m_resolution;
-	}
-
-	CoordinateInfo(int resolution = 10, double min = 0.0, double max = 100.0)
-		: m_resolution(resolution)
-		, m_min(min)
-		, m_max(max)
-	{
-	}
-};
-
 class Model
 {
 public:
 	typedef Octree Voxel;
 
-	Model(int res = 100);
+	Model();
 	~Model();
 
 	void saveModel(const char* pFileName);
 	void saveModelWithNormal(const char* pFileName);
 	void loadMatrix(const char* pFileName);
 	void loadImage(const char* pDir, const char* pPrefix, const char* pSuffix);
-	void SetNodeColor(Onode* node_ptr);
+	
 	void getModel();
 	void getSurface();
 	Eigen::Vector3f getNormal(float coorX, float coorY, float coorZ);
 
 private:
-
-	CoordinateInfo m_corrX;
-	CoordinateInfo m_corrY;
-	CoordinateInfo m_corrZ;
 
 	int m_neiborSize;
 
@@ -90,26 +67,22 @@ private:
 	double dot_pitch_x;
 	double dot_pitch_y;
 	double dot_pitch_z;
+
+	void SetNodeColor(Onode* node_ptr);
+	void ExpandAllChildren(Onode* node_ptr);
+	void ShrinkPitch();
 };
 
-Model::Model(int res) : m_corrX(res, -5, 5)
-, m_corrY(res, -10, 10)
-, m_corrZ(res, 15, 30)
-{
-	if (res > 100)
-		m_neiborSize = res / 100;
-	else
-		m_neiborSize = 1;
-	int generation = 2;
-	while (pow(2, generation) < res) {	//找到适合当前分辨率的八叉树代数，最低为2代（共9个点）
-		generation++;
-	}
-	m_voxel = new Voxel(generation-1);	//首先生成（代数-1）代的八叉树骨干用于初步搜索
-//	m_voxel->Print();
+Model::Model(){
+	m_neiborSize = 3;
+
+	int generation = 5;
+	m_voxel = new Voxel(generation);	//首先生成5代的八叉树骨干用于初步搜索
 
 	dot_pitch_x = (m_voxel->x_max - m_voxel->x_min)*pow(2, -generation);
 	dot_pitch_y = (m_voxel->y_max - m_voxel->y_min)*pow(2, -generation);
 	dot_pitch_z = (m_voxel->z_max - m_voxel->z_min)*pow(2, -generation);
+
 }
 
 Model::~Model()
@@ -124,17 +97,6 @@ void Model::saveModel(const char* pFileName)
 	for (auto it = m_surface.cbegin(); it != m_surface.cend(); it++) {
 		fout << (*it)->x << ' ' << (*it)->y << ' ' << (*it)->z << std::endl;
 	}
-
-	//for (int indexX = 0; indexX < m_corrX.m_resolution; indexX++)
-	//	for (int indexY = 0; indexY < m_corrY.m_resolution; indexY++)
-	//		for (int indexZ = 0; indexZ < m_corrZ.m_resolution; indexZ++)
-	//			if (m_surface[indexX][indexY][indexZ])
-	//			{
-	//				double coorX = m_corrX.index2coor(indexX);
-	//				double coorY = m_corrY.index2coor(indexY);
-	//				double coorZ = m_corrZ.index2coor(indexZ);
-	//				fout << coorX << ' ' << coorY << ' ' << coorZ << std::endl;
-	//			}
 }
 
 void Model::saveModelWithNormal(const char* pFileName)
@@ -147,24 +109,6 @@ void Model::saveModelWithNormal(const char* pFileName)
 		fout << nor(0) << ' ' << nor(1) << ' ' << nor(2) << std::endl;
 
 	}
-
-	//double midX = m_corrX.index2coor(m_corrX.m_resolution / 2);
-	//double midY = m_corrY.index2coor(m_corrY.m_resolution / 2);
-	//double midZ = m_corrZ.index2coor(m_corrZ.m_resolution / 2);
-
-	//for (int indexX = 0; indexX < m_corrX.m_resolution; indexX++)
-	//	for (int indexY = 0; indexY < m_corrY.m_resolution; indexY++)
-	//		for (int indexZ = 0; indexZ < m_corrZ.m_resolution; indexZ++)
-	//			if (m_surface[indexX][indexY][indexZ])
-	//			{
-	//				double coorX = m_corrX.index2coor(indexX);
-	//				double coorY = m_corrY.index2coor(indexY);
-	//				double coorZ = m_corrZ.index2coor(indexZ);
-	//				fout << coorX << ' ' << coorY << ' ' << coorZ << ' ';
-
-	//				Eigen::Vector3f nor = getNormal(indexX, indexY, indexZ);
-	//				fout << nor(0) << ' ' << nor(1) << ' ' << nor(2) << std::endl;
-	//			}
 }
 
 void Model::loadMatrix(const char* pFileName)
@@ -201,7 +145,7 @@ void Model::loadImage(const char* pDir, const char* pPrefix, const char* pSuffix
 	fileName += pPrefix;
 	for (int i = 0; i < fileCount; i++)
 	{
-		std::cout << fileName + std::to_string(i) + pSuffix << std::endl;
+//		std::cout << fileName + std::to_string(i) + pSuffix << std::endl;
 		m_projectionList[i].m_image = cv::imread(fileName + std::to_string(i) + pSuffix, CV_8UC1);
 	}
 }
@@ -222,54 +166,48 @@ void Model::SetNodeColor(Onode* node_ptr) {
 	node_ptr->status = WHITE;	//否则落在投影内部，设置为白色
 }
 
+void Model::ExpandAllChildren(Onode* node_ptr) {
+	for (int i = 0; i < 8; i++) {	//为所有孩子扩展叶子节点
+		m_voxel->Expand(node_ptr->childs[i], LEAVES);
+		node_ptr->childs[i]->status = PIVOT;	//本函数用于表面点附近，故将非叶子结点设置为PIVOT
+		for (int j = 0; j < 8; j++) {
+			SetNodeColor(node_ptr->childs[i]->childs[j]);	//设置扩展结点的颜色，并将其
+			m_surface.push_back(node_ptr->childs[i]->childs[j]);	//放入表面点集稍后处理
+		}
+	}
+}
+
+void Model::ShrinkPitch() {
+	dot_pitch_x /= 2;
+	dot_pitch_y /= 2;
+	dot_pitch_z /= 2;
+}
+
 void Model::getModel(){
 
-	struct CheckAndUpdate {
-		
-		Model* model;
+	struct UpdateStatusSurface {
+		Model *model;
 
-		CheckAndUpdate(Model* m):model(m){};
+		UpdateStatusSurface(Model *m) :model(m) {};
 
-		void operator()(Onode* node_ptr) {
-			switch (node_ptr->status){
-				case(BODY_END):{	//若是树枝干末端的点，根据是否是内部三维点设置颜色
+		void operator()(Onode * node_ptr) {
+			switch (node_ptr->status)
+			{
+				case(BODY_END): {
 					model->SetNodeColor(node_ptr);
+					model->m_surface.push_back(node_ptr);
 					break;
 				}
-				case(BODY): {	//若不是末端的点
-					switch (model->m_voxel->UpdateStatus(node_ptr)){	//根据孩子结点状况更新其状态
-						case(MIXED): {	//如果孩子含且只含黑白两色
-							for (int i = 0; i < 8; i++) {	//为所有孩子扩展叶子节点
-								model->m_voxel->Expand(node_ptr->childs[i], LEAVES);
-								for (int j = 0; j < 8; j++) {
-									model->m_surface.push_back(node_ptr->childs[i]->childs[j]);	//并将扩展的结点放入队列稍后处理
-								}
-							}
-							break;
-						}
-						case(BLACK):case(WHITE): {	//如果孩子为纯色
-							for (int i = 0; i < 8; i++) {	//删除所有孩子，以其本身颜色代表各孩子
-								node_ptr->childs[i]->status = UNUSED;
-							}
-						}
-						default:break;	//如果孩子中有支撑性的结点，什么都不做
-					}
+				case(BODY): {
+					model->m_voxel->UpdateStatus(node_ptr);
 				}
+				default:
+					break;
 			}
 		}
-	}updater(this);
+	}update_status_surface(this);
 
-	m_voxel->TravPost(m_voxel->GetRoot(), updater);
-
-//	m_voxel->Print();
-
-	std::cout << "large scale done, num of surface point: "<<m_surface.size() << std::endl;
-	
-	for(auto it=m_surface.begin();it!=m_surface.end();it++){
-		SetNodeColor(*it);
-	}
-//	m_voxel->Print();
-
+	m_voxel->TravPost(m_voxel->GetRoot(), update_status_surface);
 }
 
 void Model::getSurface()
@@ -286,27 +224,48 @@ void Model::getSurface()
 			|| zz < -m_voxel->z_min || m_voxel->z_max <= zz;
 	};
 
-	for (auto it = m_surface.begin(); it != m_surface.end();) {
-		if ((*it)->status == WHITE) {
+	for (auto it = m_surface.begin(); it != m_surface.end();) {	//遍历所有表面附近的点
+		if ((*it)->status == WHITE) {	//当它在点云内时
 			for (int i = 0; i < 6; i++) {
-				double corr_x = (*it)->x + dx[i] * dot_pitch_x;
-				double corr_y = (*it)->y + dy[i] * dot_pitch_y;
-				double corr_z = (*it)->z + dz[i] * dot_pitch_z;
-				Onode* node_ptr = m_voxel->FindPoint(corr_x, corr_y, corr_z, m_voxel->GetRoot());	//找到表面点的六个相邻点位置
-				if ((node_ptr == NULL) || (node_ptr->status == BLACK)) {	//若其中有不在三维点云内的
-					(*it)->status = SURFACE;	//标记为表面点
+				double coor_x = (*it)->x + dx[i] * dot_pitch_x;
+				double coor_y = (*it)->y + dy[i] * dot_pitch_y;
+				double coor_z = (*it)->z + dz[i] * dot_pitch_z;
+				if (m_voxel->GetStatus(coor_x,coor_y,coor_z,m_voxel->GetRoot()) == BLACK) {	//查看相邻区域是否在三维点云内，如果有不是的
+					(*it)->status = SURFACE;	//标记这一点为表面点
 					break;
 				}
 			}
 		}
-		if ((*it)->status != SURFACE) {	//该点本身不在点云内或包括它和六个相邻点在内七个点都位于点云内
-			it = m_surface.erase(it);	//删除该点
+		if ((*it)->status != SURFACE) {	//若该点本身不在点云内或包括它和六个相邻点在内七个点都位于点云内
+			it = m_surface.erase(it);	//从表面集合中删除该点
 		}
 		else {
 			it++;
 		}
 	}
-	std::cout << m_surface.size() << std::endl;
+	//std::cout << "surface size: " << m_surface.size() << std::endl;
+	if (m_surface.size() < 20000) {	//当表面点数量不足以进行有效三维重建时
+		std::unordered_set<Onode*> nodes2expand;
+		for (auto it = m_surface.begin(); it != m_surface.end(); it = m_surface.erase(it)) {	//取出所有表面点
+			nodes2expand.insert((*it)->parent);	//记录它们的父结点
+			for (int i = 0; i < 6; i++) {	//和父结点相邻的结点
+				double coor_x = (*it)->x + dx[i] * dot_pitch_x;
+				double coor_y = (*it)->y + dy[i] * dot_pitch_y;
+				double coor_z = (*it)->z + dz[i] * dot_pitch_z;
+				Onode* node_ptr = m_voxel->FindPoint(coor_x, coor_y, coor_z, m_voxel->GetRoot());
+				if (node_ptr) {
+					nodes2expand.insert(node_ptr->parent);
+					m_voxel->UpdataPivot(node_ptr->parent);
+				}
+			}
+		}
+		ShrinkPitch();
+		for (auto it = nodes2expand.cbegin(); it != nodes2expand.cend(); it++) {	//对所有记录的父辈结点
+			m_voxel->UpdataPivot(*it);	//将父辈结点及其祖先都设置为PIVOT
+			ExpandAllChildren(*it);	//扩展他们所有的孩子，放入表面集合
+		}
+		getSurface();	//递归地处理表面集合
+	}
 }
 
 Eigen::Vector3f Model::getNormal(float coor_x, float coor_y, float coor_z)
@@ -340,15 +299,18 @@ Eigen::Vector3f Model::getNormal(float coor_x, float coor_y, float coor_z)
 					{
 					case(SURFACE): {
 						neiborList.push_back(Eigen::Vector3f(neiborX, neiborY, neiborZ));
+						break;
 					}
 					case(WHITE): {
 						innerList.push_back(Eigen::Vector3f(neiborX, neiborY, neiborZ));
+						break;
 					}
 					default:
 						break;
 					}
 				}
 			}
+
 
 	Eigen::Vector3f point(coor_x, coor_y, coor_z);
 
@@ -376,37 +338,64 @@ Eigen::Vector3f Model::getNormal(float coor_x, float coor_y, float coor_z)
 
 int main(int argc, char** argv)
 {
-	clock_t t = clock();
+	clock_t total_t = clock();
 
 	// 设置xyz方向的Voxel分辨率
-	Model model(220);
+	clock_t t = clock();
+	Model model;
+	t = clock() - t;
+	std::cout << "time for initialization: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
 
 	// 读取相机的内外参数
-	model.loadMatrix("../../calibParamsI.txt");
+
+	t = clock();
+	//胳膊张开的例子
+	//model.loadMatrix("../../calibParamsI.txt");
+	//胳膊没有张开的例子
+	model.loadMatrix("../../CalibParamsB.txt");
+	t = clock() - t;
+	std::cout << "time for loading matrix: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
 
 	// 读取投影图片
-	model.loadImage("../../wd_segmented", "WD2_", "_00020_segmented.png");
+
+	t = clock();
+	//胳膊张开的例子
+	//model.loadImage("../../wd_segmented", "WD2_", "_00020_segmented.png");
+	//胳膊没有张开的例子
+	model.loadImage("../../wd_segmented", "lkB_000", "_segmented.png");
+	t = clock() - t;
+	std::cout << "time for loading images: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
 
 	// 得到Voxel模型
+	t = clock();
 	model.getModel();
-	std::cout << "get model done\n";
+	t = clock() - t;
+	std::cout << "time for getting model: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
 
 	// 获得Voxel模型的表面
+	t = clock();
 	model.getSurface();
-	std::cout << "get surface done\n";
-
-	//// 将模型导出为xyz格式
-	model.saveModel("../../WithoutNormal.xyz");
-	std::cout << "save without normal done\n";
-
-	model.saveModelWithNormal("../../WithNormal.xyz");
-	std::cout << "save with normal done\n";
-
-	system("PoissonRecon.x64 --in ../../WithNormal.xyz --out ../../mesh.ply");
-	std::cout << "save mesh.ply done\n";
-
 	t = clock() - t;
-	std::cout << "time: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
+	std::cout << "time for getting surface: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
+
+	// 将模型导出为xyz格式
+	t = clock();
+	model.saveModel("../../WithoutNormal.xyz");
+	t = clock() - t;
+	std::cout << "time for saving model without normal: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
+
+	t = clock();
+	model.saveModelWithNormal("../../WithNormal.xyz");
+	t = clock() - t;
+	std::cout << "time for saving model with normal: " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
+
+	t = clock();
+	system("PoissonRecon.x64 --in ../../WithNormal.xyz --out ../../mesh.ply");
+	t = clock() - t;
+	std::cout << "time for poinsson reconstruction " << (float(t) / CLOCKS_PER_SEC) << "seconds\n";
+
+	total_t = clock() - total_t;
+	std::cout << "total time: " << (float(total_t) / CLOCKS_PER_SEC) << "seconds\n";
 
 	return (0);
 }

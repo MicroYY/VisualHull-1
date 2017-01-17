@@ -64,3 +64,8 @@ After the improvement:
 
 3. test: For test as its name shows.
 
+# Future Work?
+
+1. add texture?
+2. the parameters of the camera is unknow?
+3. *GPU acceleated reconstruction*

@@ -56,11 +56,11 @@ After the improvement:
 
 
 # Contents of files and dictionarys
-octree: Basic implementation of octree. The source file is adopted for the actuall project.
+1. octree: Basic implementation of octree. The source file is adopted for the actuall project.
 
-test: For test as it shows.
+2. test: For test as it shows.
 
-VisualHull: Key source files, including final implementation of octree(octree.h), and the framework of the final program(main.cpp)
+3. VisualHull: Key source files, including final implementation of octree(octree.h), and the framework of the final program(main.cpp)
 
-VisualHull_Full: All files for a VC solution, including CV lib, 2 sets of test data, output data and so on.
+4. VisualHull_Full: All files for a VC solution, including CV lib, 2 sets of test data, output data and so on.
 

@@ -64,6 +64,8 @@ After the improvement:
 
 3. test: For test as its name shows.
 
+4. defense.pptx: the ppt of the defense to the advisor for this project.
+
 # Future Work?
 
 1. add texture?

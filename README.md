@@ -14,9 +14,8 @@ The original implementation of the function is based on a 3d vector. The algorit
 
 Before the improvement:
 
-time for initialization: 0.01seconds
-
-time for loading matrix: 0.046seconds
+>time for initialization: 0.01seconds
+>time for loading matrix: 0.046seconds
 
 time for loading images: 0.343seconds
 

@@ -55,7 +55,7 @@ After the improvement:
 >total time: 2.845seconds
 
 
-# Contents of files and dictionarys
+# Contents of Files and Dictionarys
 
 
 1. VisualHull: Key source files, including final implementation of octree(octree.h), and the framework of the final program(main.cpp)

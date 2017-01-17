@@ -67,5 +67,5 @@ After the improvement:
 # Future Work?
 
 1. add texture?
-2. the parameters of the camera is unknow?
+2. the parameters of the cameras is unknown?
 3. *GPU acceleated reconstruction?*

@@ -13,7 +13,7 @@ The original implementation of the function is based on a 3d vector. The algorit
 
 
 
-Before the improvement:
+Before the improvement(copied from output file):
 
 >time for initialization: 0.01seconds<br>
 >time for loading matrix: 0.046seconds<br>

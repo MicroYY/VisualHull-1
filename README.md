@@ -15,43 +15,44 @@ The original implementation of the function is based on a 3d vector. The algorit
 Before the improvement:
 
 >time for initialization: 0.01seconds
+
 >time for loading matrix: 0.046seconds
 
-time for loading images: 0.343seconds
+>time for loading images: 0.343seconds
 
-time for getting model: 5.418seconds
+>time for getting model: 5.418seconds
 
-time for getting surface: 0.057seconds
+>time for getting surface: 0.057seconds
 
-time for saving model without normal: 0.247seconds
+>time for saving model without normal: 0.247seconds
 
-time for saving model with normal: 0.81seconds
+>time for saving model with normal: 0.81seconds
 
-time for poinsson reconstruction 1.542seconds
+>time for poinsson reconstruction 1.542seconds
 
-total time: 8.476seconds
+>total time: 8.476seconds
 
 
 
 After the improvement:
 
-time for initialization: 0.004seconds
+>time for initialization: 0.004seconds
 
-time for loading matrix: 0seconds
+>time for loading matrix: 0seconds
 
-time for loading images: 0.11seconds
+>time for loading images: 0.11seconds
 
-time for getting model: 0.004seconds
+>time for getting model: 0.004seconds
 
-time for getting surface: 0.305seconds
+>time for getting surface: 0.305seconds
 
-time for saving model without normal: 0.149seconds
+>time for saving model without normal: 0.149seconds
 
-time for saving model with normal: 0.755seconds
+>time for saving model with normal: 0.755seconds
 
-time for poinsson reconstruction 1.514seconds
+>time for poinsson reconstruction 1.514seconds
 
-total time: 2.845seconds
+>total time: 2.845seconds
 
 
 # Contents of files and dictionarys

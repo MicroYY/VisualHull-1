@@ -11,6 +11,7 @@ The original implementation of the function is based on a 3d vector. The algorit
 20170115: The project had passed the defense of the final term homework with top mark.
 
 
+
 Before the improvement:
 
 time for initialization: 0.01seconds
@@ -32,7 +33,9 @@ time for poinsson reconstruction 1.542seconds
 total time: 8.476seconds
 
 
+
 After the improvement:
+
 time for initialization: 0.004seconds
 
 time for loading matrix: 0seconds

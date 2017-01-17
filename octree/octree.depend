@@ -1,7 +1,0 @@
-# depslib dependency file v1.0
-1483662187 source:c:\users\tom\documents\github\visual-hall\visualhall\octree\main.cpp
-	<iostream>
-	<vector>
-	<cmath>
-	<queue>
-

@@ -1,6 +1,0 @@
-# depslib dependency file v1.0
-1483622983 source:c:\users\tom\documents\github\visual-hall\visualhall\test\main.cpp
-	<iostream>
-	<ctime>
-	<cstdlib>
-
